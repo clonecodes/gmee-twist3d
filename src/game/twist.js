@@ -88,6 +88,7 @@ export default() => {
   //     .start();
 
   let ball = createBallShape( 0,-1.21,1);
+  console.log(ball.getScale())
 
   // // tween version //
   // ball.tween(ball.getLocalPosition())
