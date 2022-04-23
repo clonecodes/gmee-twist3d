@@ -28,70 +28,37 @@ app.keyboard.on("keydown", onKeyDown, this);
 
 function checkPos() {
   if(!ball.fallen && !ball.moving) {
-    // TODO now everything depends on tileLoop clearing
-    // TODO all zeroAngle plates have to be checked
-    // TODO all plates behind(?) interest range(!) // they are positive
-
     const p = plates.filter(p => p.zeroAngle).filter(p => {
-      const pPos = roundToTwo(p.getPosition().z)// - firstTileLength / 2;
-      const pScale = p.getLocalScale().z/2
-
+      const pPos = roundToTwo(p.getPosition().z);
+      const pScale = p.getLocalScale().z/2;
       p.current = false;
-      if(pPos > pScale){
-        p.model.material = red
-      }else if(-pScale > pPos){
-        p.model.material = green
-      }else if(-pScale < pPos && pPos < pScale){
+      if(-pScale < pPos && pPos < pScale){
+        // under the ball
         p.model.material = coral
         p.current = true;
         return p;
-      }else if(pScale === pPos){
-        console.log('same', pScale, pPos)
+      }else if(-pScale >= pPos){
+        // in front of ball
+        p.model.material = green
+      }else if(pPos >= pScale){
+        // behind ball
         p.model.material = red
-      }else{
-        console.log('NEVER HAPPENS', pScale, pPos)
-        //p.model.material = red
       }
-
-      // if(-pScale < pPos && pPos < pScale){
-      //   p.model.material = coral
-      // }else if(pPos > pScale){
-      //   p.model.material = gray
-      // }else if(-pScale > pPos){
-      //   p.model.material = red
-      // }else{
-      //   console.log('NEVER HAPPENS')
-      //   //p.model.material = red
-      // }
     }).find(p => p.current)
-    //const p = row.length && row.find(p => p.current)
 
     if(!p){
-      ball.fallen = true;
       ball.tween(ball.getLocalPosition())
           .to(new pc.Vec3(0, -10, 0), 3, pc.Linear)
           .start();
+      ball.fallen = true;
     }
-
-    // const p = plates.find(p => p.zeroAngle)
-    // if(p){
-    //     const pPos = roundToTwo(p.getPosition().z)// - firstTileLength / 2;
-    //     if(-p.getLocalScale().z/2 < pPos && pPos < p.getLocalScale().z/2){
-    //       p.model.material = coral
-    //     }else{
-    //       ball.fallen = true;
-    //       ball.tween(ball.getLocalPosition())
-    //           .to(new pc.Vec3(0, -10, 0), 3, pc.Linear)
-    //           .start();
-    //       p.model.material = red
-    //     }
-    // }
   }
 }
-function checkRotation(rot){
+
+function checkRotation(){
   if(!ball.fallen && !ball.moving) {
-    let pos = Math.round(rot) / diffAngle;
-    pos = pos > 0 ? Math.round(rot - 360) / diffAngle : pos;
+    let pos = Math.round(container.getLocalEulerAngles().z) / diffAngle;
+    pos = pos > 0 ? Math.round(container.getLocalEulerAngles().z - 360) / diffAngle : pos;
     plates.forEach(p => {
       if (Math.abs(pos) === p.pos % angleCount) {
         p.model.material = red
@@ -116,14 +83,13 @@ function tileLoop(){
 
 function tubeTwist(direction){
   if(!container.moving){
-    const angle = container.getLocalEulerAngles()
-    //checkRotation(direction ? Math.round(angle.z) - diffAngle : Math.round(angle.z) + diffAngle);
+    const angle = container.getLocalEulerAngles();
     container.tween(angle)
         .rotate(new pc.Vec3(0, 0, direction ? Math.round(angle.z) - diffAngle : Math.round(angle.z) + diffAngle), 0.5, pc.Linear)
         .start()
         .on('complete', () => {
           container.moving = false;
-          checkRotation(container.getLocalEulerAngles().z);
+          checkRotation(); // not needed when 'fly' script is on
         });
     container.moving = true;
 
@@ -135,7 +101,7 @@ function tubeTwist(direction){
           .start()
           .on('complete', () => {
             ball.moving = false;
-            checkRotation(container.getLocalEulerAngles().z);
+            checkRotation(); // not needed when 'fly' script is on
           });
       ball.moving = true;
     }
@@ -143,6 +109,7 @@ function tubeTwist(direction){
 }
 
 let plates = [];
+// TODO use spiral for initial tile positioning
 let spiral = true;
 let ball;
 
@@ -179,6 +146,7 @@ function createBallShape(x, y, z) {
   shape.setPosition(x, y, z);
   return shape;
 }
+
 function createPlateShape(x, y, z, angle = 0, length , pos, id) {
   const shape = new pc.Entity();
   shape.addComponent('model', { type: 'box' , material: gray });
@@ -186,12 +154,11 @@ function createPlateShape(x, y, z, angle = 0, length , pos, id) {
   shape.id = id;
   container.addChild(shape);
   shape.setLocalScale(1, 0.2, length);
-  //shape.setPosition(x, y, z);
   shape.setLocalPosition(x, y, z);
-  shape.setLocalEulerAngles(0, 0, angle)
-  //shape.rotate(0, 0, angle);
+  shape.setLocalEulerAngles(0, 0, angle);
   return shape;
 }
+
 function addNextPlate(){
   let n = plates.at(-1).pos + (Math.random() < 0.6 ? 1 : -1);
   if(n >= angleCount) n -= angleCount;
@@ -201,15 +168,13 @@ function addNextPlate(){
 
 function addPlate(i){
   let angle = i * diffAngle + startAngle;
-  //if(angle >= 360) angle -= 360;
-  //const corAngle = angle%2 ? angle < diffAngle * 2 ? angle + diffAngle * 2 : angle - diffAngle * 2 : angle;
-  const corAngle = angle//%2 ? angle < 90 ? angle + 90 : angle - 90 : angle;
+  if(angle >= 360) angle -= 360;
   const length = plates.length ? baseTileLength + (Math.random() < 0.6 ? baseTileLength : 0) : firstTileLength;
   const x = radius * Math.sin(degToRad(angle));
   const y = - radius * Math.cos(degToRad(angle));
   const z = plates.length ? (plates.at(-1).getLocalPosition().z - plates.at(-1).getScale().z /2 - length/2) : 0;
 
-  const plate = createPlateShape( x, y, z, corAngle, length, i, plates.length);
+  const plate = createPlateShape( x, y, z, angle, length, i, plates.length);
   plates.push(plate);
 }
 
@@ -224,7 +189,7 @@ export default() => {
   camera.setPosition(0, 0, 6);
   // // add the fly camera script to the camera
   // camera.addComponent("script");
-  // camera.script.create("s");
+  // camera.script.create("flyCamera");
   app.root.addChild(camera);
 
   // Create directional light entity
@@ -238,15 +203,14 @@ export default() => {
   light1.setLocalEulerAngles(45, 30, 180);
   app.root.addChild(light1);
 
-  // Create a movement script (used for plates)
+  // Create a movement script (used for plates container)
   let Fly = pc.createScript('fly');
   Fly.prototype.update = function (dt) {
-    let pos = this.entity.getPosition();
-//console.log(this.entity)
-    //this.entity.render.meshInstances[0].material = red;
+    // TODO make duplicate fly script, one auto and one on key press
+    const pos = this.entity.getPosition();
     //if (app.keyboard.isPressed(pc.KEY_UP) || app.keyboard.isPressed(pc.KEY_W)) {
       this.entity.setPosition(pos.x, pos.y, pos.z + 1 * dt);
-    checkRotation(container.getLocalEulerAngles().z);
+      checkRotation();
       checkPos();
       tileLoop();
     // } else if (app.keyboard.isPressed(pc.KEY_DOWN) || app.keyboard.isPressed(pc.KEY_S)) {
@@ -254,7 +218,6 @@ export default() => {
     //   checkPos();
     //   tileLoop()
     // }
-
   };
 
   container.name = 'container';
@@ -264,31 +227,16 @@ export default() => {
   //container.setPosition(2,0,0);
   //container.rotate(0,0,diffAngle);
 
-  // // tilt plates container
-  // container.tween(container.getLocalEulerAngles())
-  //     .rotate(new pc.Vec3(0, 0, diffAngle), 0.5, pc.Linear)
-  //     //.to(new pc.Vec3(0, 0.2, 0), 0.5, pc.SineOut)
-  //     .loop(true)
-  //     .yoyo(true)
-  //     //.repeat(2)
-  //     .start();
-
-  //ball = createBallShape( 0,-1 * (radius - 0.15),0.5);
   ball = createBallShape( 0,-1 * (radius - 0.19),0);
 
-  // // ball jump
-  // ball.tween(ball.getLocalPosition())
-  //     .to(new pc.Vec3(0, 0.2, 0), 0.5, pc.SineOut)
-  //     //.loop(true)
-  //     .yoyo(true)
-  //     .repeat(2)
-  //     .start();
-
+  // TODO this should be in init method
   [...Array(1)].map((a, i)=> addPlate(i));
   [...Array(23)].map(()=> addNextPlate());
   // [...Array(1)].map((a, i)=> addPlate(i));
   // [...Array(plateCount)].map(()=> addNextPlate());
-  checkRotation(container.getLocalEulerAngles().z);
+  checkRotation();
+
+  // TODO make reset method
 
 
 };
