@@ -7,8 +7,6 @@ import {app, pc} from "../initApp";
 
 let plates = [];
 let plateIdCount = 0;
-// TODO use spiral for initial tile positioning
-let spiral = true;
 
 let container;
 let ball;
@@ -75,6 +73,7 @@ const getCurrentPlate = () => {
     }
   }).find(p => p.current);
 }
+
 const nextPlateDirection = () => {
   const cp = getCurrentPlate();
   const np = plates.find(p => p.id === cp.id+1)
@@ -184,7 +183,7 @@ const createPlateShape = (x, y, z, angle = 0, length , pos, id) => {
 }
 
 const addNextPlate = () => {
-  let n = plates.at(-1).pos + (Math.random() < 0.6 ? 1 : -1);
+  let n = plates.at(-1).pos + (Math.random() < 0.5 ? 1 : -1);
   if(n >= angleCount) n -= angleCount;
   if(n < 0) n += angleCount;
   addPlate(n)

@@ -1,0 +1,10 @@
+export const spiral = false;
+export const cSpeed = 1;
+export const cSpeedInc = 0.05;
+export const cSpeedMax = cSpeed * 2;
+export const startAngle = 0;
+export const firstTileLength = 8;
+export const diffAngle = 45;
+export const angleCount = 360/diffAngle;
+export const baseTileLength = 1;
+export const radius = 1.4;
