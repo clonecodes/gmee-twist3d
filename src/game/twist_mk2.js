@@ -4,58 +4,98 @@ import {app, pc} from "../initApp";
 // rigidbody type BODYTYPE_KINEMATIC could be ideal for my needs
 // try physics version during ESA
 
-app.mouse.on(pc.EVENT_MOUSEDOWN, tubeTwist, this);
 
-const onKeyDown = function (e) {
-  if (app.keyboard.isPressed(pc.KEY_F)) {
-    const pos = container.getPosition();
-    container.setPosition(pos.x, pos.y, pos.z + 0.1);
-    checkPos();
-  }
-  if (app.keyboard.isPressed(pc.KEY_R)) {
-    const pos = container.getPosition();
-    container.setPosition(pos.x, pos.y, pos.z - 0.1);
-    checkPos();
-  }
-  if (app.keyboard.isPressed(pc.KEY_LEFT) || app.keyboard.isPressed(pc.KEY_A)) {
-    tubeTwist();
-  } else if (app.keyboard.isPressed(pc.KEY_RIGHT) || app.keyboard.isPressed(pc.KEY_D)) {
-    tubeTwist(1);
+let plates = [];
+let plateIdCount = 0;
+// TODO use spiral for initial tile positioning
+let spiral = true;
+
+let container;
+let ball;
+
+const startAngle = 0;
+const firstTileLength = 8;
+const diffAngle = 45;
+const angleCount = 360/diffAngle;
+const baseTileLength = 1;
+const radius = 1.4;
+let gameState = 'initialising'; // initialising running failed
+
+const onKeyDown = (e) => {
+  if(gameState === 'initialising') {
+    app.keyboard.isPressed(pc.KEY_SPACE) && startGame();
+  }else if(gameState === 'running'){
+    app.keyboard.isPressed(pc.KEY_SPACE) && tubeTwist(nextPlateDirection());
+    app.keyboard.isPressed(pc.KEY_LEFT) || app.keyboard.isPressed(pc.KEY_A) && tubeTwist();
+    app.keyboard.isPressed(pc.KEY_RIGHT) || app.keyboard.isPressed(pc.KEY_D) && tubeTwist(1);
+  }else if(gameState === 'failed'){
+    app.keyboard.isPressed(pc.KEY_SPACE) && resetGame();
   }
   e.event.preventDefault(); // Use original browser event to prevent browser action.
+
+  // if (app.keyboard.isPressed(pc.KEY_F)) {
+  //   const pos = container.getPosition();
+  //   container.setPosition(pos.x, pos.y, pos.z + 0.1);
+  //   checkPos();
+  // }
+  // if (app.keyboard.isPressed(pc.KEY_R)) {
+  //   const pos = container.getPosition();
+  //   container.setPosition(pos.x, pos.y, pos.z - 0.1);
+  //   checkPos();
+  // }
+
 };
-app.keyboard.on("keydown", onKeyDown, this);
+const onMouseDown = (e) => {
+  if(gameState === 'initialising') {
+    startGame();
+  }else if(gameState === 'running'){
+    tubeTwist(nextPlateDirection());
+  }else if(gameState === 'failed'){
+    resetGame();
+  }
+  e.event.preventDefault(); // Use original browser event to prevent browser action.
+}
 
-function checkPos() {
+const getCurrentPlate = () => {
+  return plates.filter(p => p.zeroAngle).filter(p => {
+    const pPos = roundToTwo(p.getPosition().z);
+    const pScale = p.getLocalScale().z/2;
+    p.current = false;
+    if(-pScale < pPos && pPos < pScale){
+      // under the ball
+      p.model.material = coral
+      p.current = true;
+      return p;
+    }else if(-pScale >= pPos){
+      // in front of ball
+      p.model.material = green
+    }else if(pPos >= pScale){
+      // behind ball
+      p.model.material = red
+    }
+  }).find(p => p.current);
+}
+const nextPlateDirection = () => {
+  const cp = getCurrentPlate();
+  const np = plates.find(p => p.id === cp.id+1)
+  const dif = cp.pos - np.pos;
+  return (dif < 0 && dif > -1 * (angleCount - 1)) || dif === angleCount - 1 ? 1 : 0;
+}
+
+const checkPos = () => {
   if(!ball.fallen && !ball.moving) {
-    const p = plates.filter(p => p.zeroAngle).filter(p => {
-      const pPos = roundToTwo(p.getPosition().z);
-      const pScale = p.getLocalScale().z/2;
-      p.current = false;
-      if(-pScale < pPos && pPos < pScale){
-        // under the ball
-        p.model.material = coral
-        p.current = true;
-        return p;
-      }else if(-pScale >= pPos){
-        // in front of ball
-        p.model.material = green
-      }else if(pPos >= pScale){
-        // behind ball
-        p.model.material = red
-      }
-    }).find(p => p.current)
-
-    if(!p){
+    if(!getCurrentPlate()){
       ball.tween(ball.getLocalPosition())
           .to(new pc.Vec3(0, -10, 0), 3, pc.Linear)
           .start();
       ball.fallen = true;
+      gameState = 'failed';
+      container.script.destroy('fly');
     }
   }
 }
 
-function checkRotation(){
+const checkRotation = () => {
   if(!ball.fallen && !ball.moving) {
     let pos = Math.round(container.getLocalEulerAngles().z) / diffAngle;
     pos = pos > 0 ? Math.round(container.getLocalEulerAngles().z - 360) / diffAngle : pos;
@@ -72,7 +112,7 @@ function checkRotation(){
   }
 }
 
-function tileLoop(){
+const tileLoop = () => {
   const p = plates.find(p => p.getPosition().z > 6);
   if(p){
     p.destroy();
@@ -81,7 +121,7 @@ function tileLoop(){
   }
 }
 
-function tubeTwist(direction){
+const tubeTwist = (direction) => {
   if(!container.moving){
     const angle = container.getLocalEulerAngles();
     container.tween(angle)
@@ -95,7 +135,7 @@ function tubeTwist(direction){
 
     if(!ball.fallen){
       ball.tween(ball.getLocalPosition())
-          .to(new pc.Vec3(0, 0, 0), 0.26, pc.Linear)
+          .to(new pc.Vec3(0, -0.6, 0), 0.26, pc.Linear)
           .repeat(2)
           .yoyo(true)
           .start()
@@ -108,23 +148,7 @@ function tubeTwist(direction){
   }
 }
 
-let plates = [];
-// TODO use spiral for initial tile positioning
-let spiral = true;
-let ball;
-
-const startAngle = 0;
-const firstTileLength = 8;
-const diffAngle = 45;
-const angleCount = 360/diffAngle;
-const baseTileLength = 1;
-const radius = 1.4;
-
-const container = new pc.Entity();
-//container.rotate(0, 0, 180);
-//container.setLocalEulerAngles(0,0,180)
-
-function createMaterial(color) {
+const createMaterial = (color) => {
   const material = new pc.StandardMaterial();
   material.diffuse = color;
   material.specular.set(0.4, 0.4, 0.4);
@@ -137,7 +161,7 @@ const red = createMaterial(new pc.Color(1, 0.3, 0.3));
 const green = createMaterial(new pc.Color(0, 1, 0));
 const coral = createMaterial(new pc.Color().fromString('#f87854') );
 
-function createBallShape(x, y, z) {
+const createBallShape = (x, y, z) => {
   const shape = new pc.Entity();
   shape.addComponent('model', { type: 'sphere', material: red });
   app.root.addChild(shape);
@@ -147,7 +171,7 @@ function createBallShape(x, y, z) {
   return shape;
 }
 
-function createPlateShape(x, y, z, angle = 0, length , pos, id) {
+const createPlateShape = (x, y, z, angle = 0, length , pos, id) => {
   const shape = new pc.Entity();
   shape.addComponent('model', { type: 'box' , material: gray });
   shape.pos = pos;
@@ -159,14 +183,14 @@ function createPlateShape(x, y, z, angle = 0, length , pos, id) {
   return shape;
 }
 
-function addNextPlate(){
+const addNextPlate = () => {
   let n = plates.at(-1).pos + (Math.random() < 0.6 ? 1 : -1);
   if(n >= angleCount) n -= angleCount;
-  if(n <= 0) n += angleCount;
+  if(n < 0) n += angleCount;
   addPlate(n)
 }
 
-function addPlate(i){
+const addPlate = (i) =>{
   let angle = i * diffAngle + startAngle;
   if(angle >= 360) angle -= 360;
   const length = plates.length ? baseTileLength + (Math.random() < 0.6 ? baseTileLength : 0) : firstTileLength;
@@ -174,7 +198,9 @@ function addPlate(i){
   const y = - radius * Math.cos(degToRad(angle));
   const z = plates.length ? (plates.at(-1).getLocalPosition().z - plates.at(-1).getScale().z /2 - length/2) : 0;
 
-  const plate = createPlateShape( x, y, z, angle, length, i, plates.length);
+  const plate = createPlateShape( x, y, z, angle, length, i, plateIdCount);
+  plateIdCount++;
+  //console.log(plate.id, plate.pos)
   plates.push(plate);
 }
 
@@ -186,7 +212,7 @@ export default() => {
   camera.addComponent('camera', {
     clearColor: new pc.Color(0.1, 0.2, 0.3)
   });
-  camera.setPosition(0, 0, 6);
+  camera.setPosition(0, 0.5, 6);
   // // add the fly camera script to the camera
   // camera.addComponent("script");
   // camera.script.create("flyCamera");
@@ -209,7 +235,10 @@ export default() => {
     // TODO make duplicate fly script, one auto and one on key press
     const pos = this.entity.getPosition();
     //if (app.keyboard.isPressed(pc.KEY_UP) || app.keyboard.isPressed(pc.KEY_W)) {
-      this.entity.setPosition(pos.x, pos.y, pos.z + 1 * dt);
+      // TODO increase speed after a while
+    // TODO speed of flying and speed of turning have to be in relation
+
+      this.entity.setPosition(pos.x, pos.y, pos.z + 1.2 * dt);
       checkRotation();
       checkPos();
       tileLoop();
@@ -219,27 +248,44 @@ export default() => {
     //   tileLoop()
     // }
   };
+  initGame();
+  app.keyboard.on("keydown", onKeyDown, this);
+  app.mouse.on(pc.EVENT_MOUSEDOWN, onMouseDown, this);
+  //app.mouse.off(pc.EVENT_MOUSEDOWN, tubeTwist, this);
+  //app.keyboard.off("keydown", onKeyDown, this);
+};
 
-  container.name = 'container';
+const initGame = () => {
+  container = new pc.Entity();
   app.root.addChild(container);
-  container.addComponent('script');
-  container.script.create('fly');
-  //container.setPosition(2,0,0);
-  //container.rotate(0,0,diffAngle);
-
   ball = createBallShape( 0,-1 * (radius - 0.19),0);
-
-  // TODO this should be in init method
-  [...Array(1)].map((a, i)=> addPlate(i));
+  addPlate(0);
+  //[...Array(7)].map((a, i)=> addPlate(i));
   [...Array(23)].map(()=> addNextPlate());
-  // [...Array(1)].map((a, i)=> addPlate(i));
   // [...Array(plateCount)].map(()=> addNextPlate());
   checkRotation();
+  gameState = 'initialising';
+}
 
-  // TODO make reset method
+const startGame = () => {
+  gameState = 'playing';
+  container.addComponent('script');
+  container.script.create('fly');
+  gameState = 'running';
+}
 
-
-};
+const resetGame = () => {
+  plateIdCount = 0;
+  ball.destroy();
+  plates.forEach(p => {
+    p.destroy();
+    p = null;
+  });
+  plates = [];
+  container.script.destroy('fly');
+  container.destroy();
+  initGame();
+}
 
 
 function degToRad(degrees){
