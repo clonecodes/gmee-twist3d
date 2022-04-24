@@ -73,7 +73,6 @@ export const tubeTwist = (direction) => {
   if(!app.game.container.twisting){
     const angle = app.game.container.getLocalEulerAngles();
     const animSpeed = roundToTwo(cSpeed-app.game.speed/2);
-    console.log(app.game.speed, animSpeed)
     app.game.container.tween(angle)
         .rotate(new pc.Vec3(0, 0, direction ? Math.round(angle.z) - diffAngle : Math.round(angle.z) + diffAngle), animSpeed, pc.Linear)
         .start()

@@ -14,7 +14,13 @@ export const onKeyDown = (e) => {
   }
   e.event.preventDefault(); // Use original browser event to prevent browser action.
 };
-export const onMouseDown = (e) => {
+export const onMouseDown = () => {
+  mouseDownAndTouch();
+}
+export const onTouchStart = () => {
+  mouseDownAndTouch();
+}
+const mouseDownAndTouch = () => {
   if(app.game.gameState === 'initialising') {
     startGame();
   }else if(app.game.gameState === 'running'){
@@ -22,5 +28,4 @@ export const onMouseDown = (e) => {
   }else if(app.game.gameState === 'failed'){
     resetGame();
   }
-  e.event.preventDefault(); // Use original browser event to prevent browser action.
 }

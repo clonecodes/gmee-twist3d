@@ -56,7 +56,7 @@ module.exports = {
   },
   plugins: [
     new HtmlWebpackPlugin({
-      title: 'Webpack PlayCanvas App',
+      title: 'Twist3D',
       filename: 'index.html',
       template: 'src/template.html',
     }),

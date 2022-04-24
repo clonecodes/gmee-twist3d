@@ -3,7 +3,7 @@ import {addCamera} from "./camera";
 import {addLights} from "./lights";
 import {cSpeed, radius, spiral} from "./consts";
 import {createBallShape, addPlate, addNextPlate} from "./factory";
-import {onKeyDown, onMouseDown} from "./inputHandlers";
+import {onKeyDown, onMouseDown, onTouchStart} from "./inputHandlers";
 import "./pcScriptFly";
 import {checkRotation} from "./helpers";
 
@@ -24,7 +24,12 @@ export default() => {
   addLights();
   initGame();
   app.keyboard.on("keydown", onKeyDown, this);
-  app.mouse.on(pc.EVENT_MOUSEDOWN, onMouseDown, this);
+  if('ontouchstart' in window || navigator.msMaxTouchPoints) {
+    app.touch = new pc.TouchDevice(window);
+    app.touch.on(pc.EVENT_TOUCHSTART, onTouchStart, this);
+  }else{
+    app.mouse.on(pc.EVENT_MOUSEDOWN, onMouseDown, this);
+  }
 }
 
 export const initGame = () => {
